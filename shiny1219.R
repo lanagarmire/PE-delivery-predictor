@@ -36,7 +36,7 @@ ui <- shinyUI(
             plotOutput("individual_dist")
           ),
           fluidRow(
-            tableOutput("pi_table")
+            dataTableOutput("pi_table")
           )
         )
       )
@@ -137,7 +137,7 @@ server <- shinyServer(function(input, output){
     result <- get_theta()
     predTrain = result[[1]]
     predTest = result[[2]]
-    df = data.frame(predTrain)
+    df = data.frame(c(predTrain, predTest))
     colnames(df) = "train"
     #plot train theta histogram and mark test theta location
     ggplot(df, aes(x = train))+
@@ -151,7 +151,7 @@ server <- shinyServer(function(input, output){
       xlab("Prognosis Index")
   })
   
-  output$pi_table = renderTable({
+  output$pi_table = renderDataTable({
     result = get_theta()
     percent_tbl = percentile(result)
     pi_table = cbind(c(1:nrow(percent_tbl)),percent_tbl)

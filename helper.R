@@ -1,5 +1,6 @@
 scale_test = function(test){
-  load("data/data_no_scale.RData")
+  print(colnames(test))
+  #load("data/data_no_scale.RData")
   if("AST"%in% colnames(test)){
     test$AST = log(test$AST)#log transform skewed values
     test$AST = test$AST/64 # scale with the root mean square from training dataset
@@ -13,10 +14,7 @@ scale_test = function(test){
     test$RRSD[is.infinite(test$RRSD)] =  -1
     test$RRSD = test$RRSD/1.07
   }
-  if("creatinine_value"%in% colnames(test)){
-    test$creatinine_value = log(test$creatinine_value)
-    test$creatinine_value = test$creatinine_value/0.65
-  }
+
   if("diag_GA"%in% colnames(test)){
     test$diag_GA = test$diag_GA/251.54
   }
@@ -38,7 +36,7 @@ scale_test = function(test){
   if("BPSysMean"%in% colnames(test)){
     test$BPSysMean= test$PBPSysMean/139.60
   }
-
+  return(test)
 }
 
 selu = function(x){
@@ -53,7 +51,7 @@ selu = function(x){
 }
 
 
-calculate_theta = function(W,b, test, time_test, sta_test, cv.tr, predTrain){
+calculate_theta = function(W,b, test, cv.tr, predTrain){
   W = t(W)
   b = t(b)
   
@@ -98,11 +96,12 @@ percentile = function(result){
   # get train theta
   predTrain = result[[1]]
   predTest = result[[2]]
+  risk = c(predTrain, predTest)
   percent = c()
   for(i in 1:length(predTest)){
-    percent[i] = round(sum(predTest[i]>predTrain)/length(predTrain),4)*100
+    percent[i] = round(sum(predTest[i]>risk)/length(risk),4)*100
   }
-  percentile = data.frame(predTest, percent)
+  percentile = data.frame(round(predTest,2), percent)
   return(percentile)
 }
 
