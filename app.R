@@ -6,6 +6,9 @@ library(survival)
 library(survminer)
 source("helper.R")
 
+options(shiny.host = '0.0.0.0')
+options(shiny.port = 8091)
+
 models = c("Baseline Model", "Full Model", "EOPE Baseline Model", "EOPE Full Model")
 
   
