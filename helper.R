@@ -3,38 +3,41 @@ scale_test = function(test){
   #load("data/data_no_scale.RData")
   if("AST"%in% colnames(test)){
     test$AST = log(test$AST)#log transform skewed values
-    test$AST = test$AST/64 # scale with the root mean square from training dataset
+    test$AST = test$AST/3.375018 # scale with the root mean square from training dataset
   }
   if("creatinine_value"%in% colnames(test)){
     test$creatinine_value = log(test$creatinine_value)
-    test$creatinine_value = test$creatinine_value/0.65
+    test$creatinine_value = test$creatinine_value/0.5608462
   }
   if("RRSD"%in% colnames(test)){
     test$RRSD = log(test$RRSD)
     test$RRSD[is.infinite(test$RRSD)] =  -1
-    test$RRSD = test$RRSD/1.07
+    test$RRSD = test$RRSD/0.9929068
   }
 
   if("diag_GA"%in% colnames(test)){
     test$diag_GA = test$diag_GA/251.54
   }
   if("age"%in% colnames(test)){
-    test$age= test$age/30.74
+    test$age= test$age/30.73859
   }
   if("EPIS_PARA_COUNT"%in% colnames(test)){
-    test$EPIS_PARA_COUNT= test$EPIS_PARA_COUNT/1.36
+    test$EPIS_PARA_COUNT= test$EPIS_PARA_COUNT/1.3572
   }
   if("White_Blood_Cell_Count"%in% colnames(test)){
     test$White_Blood_Cell_Count= test$White_Blood_Cell_Count/11.35
   }
   if("BPDiaMean"%in% colnames(test)){
-    test$BPDiaMean= test$BPDiaMean/84.95
+    test$BPDiaMean= test$BPDiaMean/85.005
   }
   if("Platelet_Count"%in% colnames(test)){
-    test$Platelet_Count= test$Platelet_Count/231.77
+    test$Platelet_Count= test$Platelet_Count/231.809
   }
   if("BPSysMean"%in% colnames(test)){
     test$BPSysMean= test$PBPSysMean/139.60
+  }
+  if("BPDiaSD"%in%colnames(test)){
+    test$BPDiaSD = test$BPDiaSD/8.8151
   }
   return(test)
 }

@@ -1,6 +1,5 @@
 ---
-title: "Instruction"
-author: "Xiaotong Yang"
+title: "PE Prognosis Predictor Manual"
 date: "12/22/2022"
 output: html_document
 ---
@@ -9,13 +8,21 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This preeclampsia prognosis predictor contains two main panels: the prediction panel and the validation panel. The prediction panel allows users to predict the prognosis index(PI) of new patients using pre-trained models and report the percentiles of their predicted PIs in the distribution. The validation panel takes in a group of new patients with known time to delivery and produces two plots (a) a scatterplot of predicted risk versus true time intervals from diagnosis to delivery for each patient; and (b) the survival curves of different risk groups, categorized by their predicted risk. 
+### Introduction
 
-## To use the App
+The web application provides predictive insights into the time-to-delivery of patients diagnosed with preeclampsia. It uses pre-trained models to provide accurate predictions and visualizations, making it a user-friendly tool for healthcare professionals.
 
-### Step 1: Choose pre-trained model
 
-The users first need to choose the desired pre-trained model based on their patient characteristics and data availability.
+### Step 1: Choose the panel
+
+The web application has two main panels: the individual prediction panel and the group prediction panel.
+
+- Individual prediction panel: This panel calculates the prognosis score (PI) of time to delivery for a single new patient using pre-trained models. The input should be a text file with one line of values from a single patient.
+- Group prediction panel: This panel takes a group of new patients as input and returns the predicted PIs and their percentiles in a table format.
+
+### Step 2: Choose pre-trained model
+
+The user needs to choose the desired pre-trained model based on their patient characteristics and data availability. The available pre-trained models are:
 
 ```{r table1, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
 tabl <- "
@@ -29,8 +36,8 @@ tabl <- "
 cat(tabl) # output the table in a format good for HTML/PDF/docx conversion
 ```
 
-### Step 2: Upload new patient data
-Both panels take a single delimited file as input.The users can choose to use “;”, “,” or “:” as delimiters. The input file should have the same exact columns following the same order as shown below. When using the validation panel, the user also needs to include the response variable “time_to_deliver”, which measures the time in days between initial diagnosis of PE and delivery. 
+### Step 3: Upload new patient data
+Both the individual prediction panel and the group prediction panel require a single delimited file as input. The users have the option to choose between three delimiters: ";", ",", or ":". The input file must have the same columns in the same order as specified. The individual prediction panel requires only a single row of data in the input file, whereas the group prediction panel allows for multiple rows.
 
 
 ```{r table2, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
@@ -44,7 +51,6 @@ tabl <- "
 |                    | EPIS_PARA_COUNT      |Previous parity counts                                                                     |
 |                    | DiabetesUncomplicated|1: The patient has  uncomplicated diabetes comorbidity; 0:Otherwise                                  |
 |                    | ValvularDisease      |1: The patient has  valvular disease comorbidity; 0:Otherwise                                    |
-|                    | time_to_deliver(validation only)|Difference in days between initial diagnoses of PE and delivery (if difference is 0, record as 0.5)|
 | Full Model         |diag_GA               |PE diagnoses gestational age(days)                                |
 |                    |SeverePE              |1:  the preeclampsia is severe at the first diagnosis; 0: mild preeclampsia at the first diagnosis|
 |                    |AST                   |Aspartate aminotransferase measurement at diagnosis (u/L)                                         |
@@ -58,14 +64,12 @@ tabl <- "
 |                    |Platelet_Count        |Platelet count at diagnosis |
 |                    |White_Blood_Cell_Count|White blood cell count at diagnosis|
 |                    |past_pe              |1:  the patient has previous preeclampsia history; 0:Otherwise                                    |
-|                    | time_to_deliver(validation only)|Difference in days between initial diagnoses of PE and delivery (if difference is 0, record as 0.5)|
 |EOPE Baseline Model |diag_GA               |PE diagnoses gestational age(days)                                |
 |                    | past_pe              |1:  the patient has previous preeclampsia history; 0:Otherwise                                    |
 |                    | EPIS_PARA_COUNT      |Previous parity counts                                                                     |
 |                    | Coagulopathy         |1: The patient has Coagulopathy comorbidity; 0:Otherwise                                  |
 |                    | PulmonaryCirculationDisorders     |1: The patient has pulmonary circulation disorder; 0:Otherwise                                    |
 |                    |SeverePE              |1:  the preeclampsia is severe at the first diagnosis; 0: mild preeclampsia at the first diagnosis|
-|                    | time_to_deliver(validation only)|Difference in days between initial diagnoses of PE and delivery (if difference is 0, record as 0.5)| 
 |EOPE Full Model     | EPIS_PARA_COUNT      |Previous parity counts                                                                     |
 |                    | NUMBER_OF_FETUSES    |Baseline variables, lab results and vital measuementS| 
 |                    |diag_GA               |PE diagnoses gestational age(days)                                |
@@ -79,13 +83,12 @@ tabl <- "
 |                    |BPSysMean             |Average of systolic blood pressure within 5 days before diagnosis|
 |                    |RRSD                  |Standard deviation of respirtory rate within 5 days before diagnosis  |
 |                    | past_pe              |1:  the patient has previous preeclampsia history; 0:Otherwise                                    |
-|                    | time_to_deliver(validation only)|Difference in days between initial diagnoses of PE and delivery (if difference is 0, record as 0.5)|
 "
 cat(tabl)
 ```
 
 
-### Step 3: Choose whether to scale new data
+### Step 4: Choose whether to scale new data
 
-The pre-trained model requires all numeric variables to be scaled by dividing their square root mean value. "creatinine_value", "AST" and "RRSD" need to be log-transformed before scaling. The user can choose "Yes" at the question "Does the data need to be processed?" for automatic scaling or "No" for manual scaling. Automatic scaling is recommended if the new input data has small dataset.  
+The pre-trained model mandates the scaling of all numeric variables by dividing them by the square root of their mean value. The variables "creatinine_value," "AST," and "RRSD" must be log-transformed prior to scaling. If the option "Does the data need to be processed?" is set to "Yes," the app will automatically scale the input data. However, if set to "No," it will be the responsibility of the user to scale the data, which is not recommended.
 

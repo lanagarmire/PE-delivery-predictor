@@ -14,38 +14,7 @@ models = c("Baseline Model", "Full Model", "EOPE Baseline Model", "EOPE Full Mod
   
 ui <- shinyUI(
   navbarPage("Preeclampsia Prognosis Prediction Tool",
-   # predict one patient           
-   tabPanel("Prediction",
-      sidebarLayout(
-        sidebarPanel(
-          radioButtons("select_model1", "Please select model:", models),
-          fileInput('target_upload1', 'Upload new data (see instruction)',
-                    accept = c(
-                      'text/csv',
-                      'text/comma-separated-values',
-                      '.csv'
-                    )),
-          radioButtons("separator1","Separator: ",choices = c(";",",",":"), selected=",",inline=TRUE),
-          radioButtons("data_process1","Does the data need to be processed?", choices = c("Yes", "No"), selected = "No")
-        ),
-        mainPanel(
-          fluidRow(
-            h1("Prediction Panel"),
-            p("Use the prediction panel to predict the prognosis index (PI) of new patients."),
-            p("Select the preferred model and upload a csv file containing required patient information to make new predictions."),
-            strong("Details see instruction")
-          ),
-          fluidRow(
-            plotOutput("individual_dist")
-          ),
-          fluidRow(
-            dataTableOutput("pi_table")
-          )
-        )
-      )
-    ),
-   # input is a group of patients
-   tabPanel("Validation",
+   tabPanel("Individual Prediction",
             sidebarLayout(
               sidebarPanel(
                 radioButtons("select_model2", "Please select model:", models),
@@ -60,17 +29,50 @@ ui <- shinyUI(
               ),
               mainPanel(
                 fluidRow(
-                  h1("Validation Panel"),
-                  p("Use the validation panel to validate pretrained model using new patient data and survival status."),
-                  p("Select the preferred model and upload a csv file containing required patient information to validate model. Details see instruction")
+                  h1("Individual Patient Prediction Panel"),
+                  p("Use the prediction panel to predict the prognosis index (PI) of one new patients."),
+                  p("Select the preferred model and upload a csv file containing required patient information to make new predictions."),
+                  strong("Details see instruction")
                 ),
                 fluidRow(
-                  column(6, plotOutput("time_theta_plt")),
-                  column(6, plotOutput("survival_curve")),
+                  plotOutput("individual_dist")
                 ),
-                fluidRow(textOutput("cindex"))
+                fluidRow(
+                  dataTableOutput("pi_table_ind")
+                )
               )
-            )),
+            )
+            ),
+   # predict a group of patient           
+   tabPanel("Group Prediction",
+      sidebarLayout(
+        sidebarPanel(
+          radioButtons("select_model1", "Please select model:", models),
+          fileInput('target_upload1', 'Upload new data (see instruction)',
+                    accept = c(
+                      'text/csv',
+                      'text/comma-separated-values',
+                      '.csv'
+                    )),
+          radioButtons("separator1","Separator: ",choices = c(";",",",":"), selected=",",inline=TRUE),
+          radioButtons("data_process1","Does the data need to be processed?", choices = c("Yes", "No"), selected = "No")
+        ),
+        mainPanel(
+          fluidRow(
+            h1("Group Prediction Panel"),
+            p("Use the prediction panel to predict the prognosis index (PI) of a group of new patients."),
+            p("Select the preferred model and upload a csv file containing required patient information to make new predictions."),
+            strong("Details see instruction")
+          ),
+          fluidRow(
+            plotOutput("group_dist")
+          ),
+          fluidRow(
+            dataTableOutput("pi_table")
+          )
+        )
+      )
+    ),
    tabPanel("Instruction",
             includeHTML("instruction.html")
             )
@@ -81,7 +83,7 @@ ui <- shinyUI(
 
 server <- shinyServer(function(input, output){
   
-################################### individual prediction#############################
+################################### group prediction#############################
 
     # load data based on selection on individual prediction
   data_ind1 = reactive({
@@ -134,9 +136,8 @@ server <- shinyServer(function(input, output){
   })
   
   
-  
-  #Generate distribution plot
-  output$individual_dist = renderPlot({
+  #Generate group distribution plot
+  output$group_dist = renderPlot({
     result <- get_theta()
     predTrain = result[[1]]
     predTest = result[[2]]
@@ -165,7 +166,7 @@ server <- shinyServer(function(input, output){
   
   
   
-  ################################# validation ###################################
+  ################################# Individual Prediction ###################################
   
   # data loader
   data_ind2 = reactive({
@@ -183,116 +184,61 @@ server <- shinyServer(function(input, output){
     W = read.csv(paste0("data/",folder, "/Wr.csv"), header = F)
     b = read.csv(paste0("data/",folder, "/br.csv"), header = F)
     test = read.csv(paste0("data/",folder, "/hold_out_x.csv"), header = T)
-    #train = read.csv(paste0("data/",folder, "/cv_x.csv"), header = T)
-    time_test = read.csv(paste0("data/",folder, "/hold_out_y.csv"))
-    sta_test = read.csv(paste0("data/",folder, "/hold_out_y_status.csv"),header=T)
-    # time_train = read.csv(paste0("data/",folder, "/cv_y.csv"),header=T)
-    # sta_train = read.csv(paste0("data/",folder, "/cv_y_status.csv"), header=T)
+    test = test[1, ]
     
-    #process raw data
-    if(input$data_process2 == "Yes"){
-      test = scale_test(test)
-    }
-    
-    return(list(W, b, test, time_test, sta_test, cv.tr, predTrain))
+    return(list(W, b, test, cv.tr, predTrain))
   })
   
   # predict test PI(theta)
-  get_theta_group = reactive({
+  get_theta_ind = reactive({
     #load variable list
     dat = data_ind2()
     #read in test data
     inFile <- input$target_upload2
     if (is.null(inFile)){
       test = dat[[3]]
-      time_test = dat[[4]]
       
     }else{
-      df <- read.csv(inFile$datapath, header = TRUE,sep = input$separator2, row.names = NULL)
-      test = df[,-ncol(df)]
-      time_test = data.frame(df[, "time_to_deliver"])
+      test <- read.csv(inFile$datapath, header = TRUE,sep = input$separator2, row.names = NULL)
     }
-
-    theta = calculate_theta(dat[[1]], dat[[2]], test, dat[[6]], dat[[7]])
-    return(list(theta[[1]], theta[[2]], time_test))
-  })
-  
-  #plot theta vs time scatterplot
-  output$time_theta_plt = renderPlot({
-    result <- get_theta_group()
-    predTrain = result[[1]]
-    predTest = result[[2]]
-    time_test = result[[3]]
-   
-    #extract predicted test theta and real test time
-    coxnnet_result = data.frame(predTest, time_test)
-    colnames(coxnnet_result) = c("theta", "time")
-    ggplot(coxnnet_result, aes(x = theta, y = time))+
-      geom_point(col = "steelblue")+
-      labs(y = "Time to deliver(days)", x = "Prognosis Index")
-  })
-  
-  #plot survival curve of high risk vs low risk group
-  runSur <- reactive({
-    result <- get_theta_group()
-    predTrain = result[[1]]
-    predTest = result[[2]]
-    time_test = result[[3]]
-
-    risk = c()
-    # plot KM curves
-    for(i in 1:length(predTest)){
-      if(predTest[i]>quantile(predTest, probs = 0.75)){
-        risk[i] = "High"
-      }else if(predTest[i]<quantile(predTest, probs=0.25)){
-        risk[i] = "Low"
-      }else{
-        risk[i] = "Middle"
-      }
+    #process raw data
+    if(input$data_process2 == "Yes"){
+      test = scale_test(test)
     }
     
-    #high_risk = theta>median(theta)
-    surv_curve = data.frame(time_test, risk)
-    colnames(surv_curve)[1] = "time_test"
-    form <- formula(paste("Surv(time_test, rep(1, length(time_test))) ~ risk"))
-    eval(bquote(survfit(.(form),data=surv_curve)))
+
+    theta = calculate_theta(dat[[1]], dat[[2]], test, dat[[4]], dat[[5]])
+    return(list(theta[[1]], theta[[2]]))
   })
   
-  output$survival_curve = renderPlot({
-    result <- get_theta_group()
+  # Generate individual prediction plot
+  output$individual_dist = renderPlot({
+    result <- get_theta_ind()
     predTrain = result[[1]]
     predTest = result[[2]]
-    time_test = result[[3]]
-    
-    risk = c()
-    # plot KM curves
-    for(i in 1:length(predTest)){
-      if(predTest[i]>quantile(predTest, probs = 0.75)){
-        risk[i] = "High"
-      }else if(predTest[i]<quantile(predTest, probs=0.25)){
-        risk[i] = "Low"
-      }else{
-        risk[i] = "Middle"
-      }
-    }
-    
-    #high_risk = theta>median(theta)
-    surv_curve = data.frame(time_test, risk)
-    #surv_test = survfit(, data = surv_curve)
-    survminer::ggsurvplot(fit = runSur(), data = surv_curve, conf.int = T)+labs(x = "Time to deliver(days)")
+
+    percent = percentile(result)[,2]
+    df = data.frame(c(predTrain, predTest))
+    colnames(df) = "train"
+    #plot train theta histogram and mark test theta location
+    ggplot(df, aes(x = train))+
+      geom_histogram(aes(y = ..density..), 
+                     binwidth = .5, colour = "black", fill = "white")+
+      geom_density(alpha = .2, fill="#FF6655")+
+      geom_vline(aes(xintercept = predTest),
+                 colour = "red", linetype ="longdash", size = .8)+
+      annotate("text", x = predTest + 0.5, y =0.25, colour = "red", size = 6,
+               label = paste0("PI: ", round(predTest,2), "\n Higher risk than ", percent, "% patients."))+
+      xlab("Prognosis Index")
   })
   
-#text output testing cindex
-  output$cindex = renderText({
-    result = get_theta_group()
+  output$pi_table_ind = renderDataTable({
+    result = get_theta_ind()
     predTest = result[[2]]
-    time_test = result[[3]]
-
-    sta_test = rep(1, nrow(time_test))
-    ytest = data.frame(time = time_test, status = sta_test)
-    colnames(ytest) = c("time", "status")
-    cindex = round(Cindex(as.matrix(predTest),ytest),3)
-    paste("C-index of the Cox-nnet model is :" , cindex)
+    percent_tbl = percentile(result)
+    pi_table = cbind(c(1:nrow(percent_tbl)),percent_tbl)
+    colnames(pi_table) = c("Patient id", "Predicted PI", "Higher risk than % patients")
+    pi_table
   })
   
 })
