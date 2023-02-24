@@ -34,11 +34,15 @@ ui <- shinyUI(
                   p("Select the preferred model and upload a csv file containing required patient information to make new predictions."),
                   strong("Details see instruction")
                 ),
+                fluidRow(downloadButton("download_test2", "Download Sample Individual Test File"),
+                         align = "center"),
                 fluidRow(
                   plotOutput("individual_dist")
                 ),
+                fluidRow(downloadButton("downloadData2", "Download Individual Prediction Result"),
+                         align = "center"),
                 fluidRow(
-                  dataTableOutput("pi_table_ind")
+                  dataTableOutput("pi_table2")
                 )
               )
             )
@@ -64,9 +68,11 @@ ui <- shinyUI(
             p("Select the preferred model and upload a csv file containing required patient information to make new predictions."),
             strong("Details see instruction")
           ),
+          fluidRow(downloadButton("downloadTest1", "Download Sample Group Test File"),align = "center"),
           fluidRow(
             plotOutput("group_dist")
           ),
+          fluidRow(downloadButton("downloadData1", "Download Group Prediction Result"),align = "center"),
           fluidRow(
             dataTableOutput("pi_table")
           )
@@ -102,16 +108,16 @@ server <- shinyServer(function(input, output){
     W = read.csv(paste0("data/",folder, "/Wr.csv"), header = F)
     b = read.csv(paste0("data/",folder, "/br.csv"), header = F)
     test = read.csv(paste0("data/",folder, "/hold_out_x.csv"), header = T)
-    #train = read.csv(paste0("data/",folder, "/cv_x.csv"), header = T)
     time_test = read.csv(paste0("data/",folder, "/hold_out_y.csv"))
     sta_test = read.csv(paste0("data/",folder, "/hold_out_y_status.csv"),header=T)
-    #time_train = read.csv(paste0("data/",folder, "/cv_y.csv"),header=T)
-    #sta_train = read.csv(paste0("data/",folder, "/cv_y_status.csv"), header=T)
-    
     
     return(list(W, b, test, time_test, sta_test, cv.tr, predTrain))
   })
   
+  example = reactive({
+    example_test = read.csv("/test files/full_prediction_noscale.csv", header = T)
+    return(example_test)
+  })
   
   #calculate new theta
   get_theta <- reactive({
@@ -155,15 +161,34 @@ server <- shinyServer(function(input, output){
       xlab("Prognosis Index")
   })
   
-  output$pi_table = renderDataTable({
-    result = get_theta()
-    percent_tbl = percentile(result)
-    pi_table = cbind(c(1:nrow(percent_tbl)),percent_tbl)
-    colnames(pi_table) = c("Patient id", "Predicted PI", "Higher risk than % patients")
-    pi_table
+  data <- reactive({
+    if(!is.null(input$target_upload1)){
+      result = get_theta()
+      percent_tbl = percentile(result)
+      pi_table = cbind(c(1:nrow(percent_tbl)),percent_tbl)
+      colnames(pi_table) = c("Patient id", "Predicted PI", "Higher risk than % patients")
+      return(pi_table)
+    }else{
+      return("")
+    }
+    
   })
   
-  
+  output$pi_table = renderDataTable({
+    data()
+  })
+  output$downloadData1 = downloadHandler(
+    filename = "PE_Group_Output.csv",
+    content = function(file){
+      write.csv(data(), file)
+    })
+  output$downloadTest1 = downloadHandler(
+    filename = "Sample_Group_Test.csv",
+    content = function(file){
+      write.csv(head(example()), file)
+    }
+    
+  )
   
   
   ################################# Individual Prediction ###################################
@@ -188,6 +213,11 @@ server <- shinyServer(function(input, output){
     
     return(list(W, b, test, cv.tr, predTrain))
   })
+  # get sample test file
+  example_ind = reactive({
+    example_test = read.csv(paste0("./test_files/ind_noscale_new.csv"), header = T)
+    return(example_test)
+  })
   
   # predict test PI(theta)
   get_theta_ind = reactive({
@@ -206,13 +236,21 @@ server <- shinyServer(function(input, output){
       test = scale_test(test)
     }
     
-
     theta = calculate_theta(dat[[1]], dat[[2]], test, dat[[4]], dat[[5]])
     return(list(theta[[1]], theta[[2]]))
   })
   
+  get_update = reactive({
+    if (is.null(input$target_upload2)){
+      return(FALSE)
+    }else{
+      return(TRUE)
+    }
+  })
+  
   # Generate individual prediction plot
   output$individual_dist = renderPlot({
+    
     result <- get_theta_ind()
     predTrain = result[[1]]
     predTest = result[[2]]
@@ -221,27 +259,67 @@ server <- shinyServer(function(input, output){
     df = data.frame(c(predTrain, predTest))
     colnames(df) = "train"
     #plot train theta histogram and mark test theta location
-    ggplot(df, aes(x = train))+
-      geom_histogram(aes(y = ..density..), 
-                     binwidth = .5, colour = "black", fill = "white")+
-      geom_density(alpha = .2, fill="#FF6655")+
-      geom_vline(aes(xintercept = predTest),
-                 colour = "red", linetype ="longdash", size = .8)+
-      annotate("text", x = predTest + 0.5, y =0.25, colour = "red", size = 6,
-               label = paste0("PI: ", round(predTest,2), "\n Higher risk than ", percent, "% patients."))+
-      xlab("Prognosis Index")
+    if(get_update()){
+      ggplot(df, aes(x = train))+
+        geom_histogram(aes(y = ..density..), 
+                       binwidth = .5, colour = "black", fill = "white")+
+        geom_density(alpha = .2, fill="#FF6655")+
+        geom_vline(aes(xintercept = predTest),
+                   colour = "red", linetype ="longdash", size = .8)+
+        annotate("text", x = predTest + 0.5, y =0.25, colour = "red", size = 6,
+                 label = paste0("PI: ", round(predTest,2), "\n Higher risk than ", percent, "% patients."))+
+        xlab("Prognosis Index")
+    }else{
+      ggplot(df, aes(x = train))+
+        geom_histogram(aes(y = ..density..), 
+                       binwidth = .5, colour = "black", fill = "white")+
+        geom_density(alpha = .2, fill="#FF6655")+
+        xlab("Prognosis Index")
+    }
+  
   })
   
-  output$pi_table_ind = renderDataTable({
-    result = get_theta_ind()
-    predTest = result[[2]]
-    percent_tbl = percentile(result)
-    pi_table = cbind(c(1:nrow(percent_tbl)),percent_tbl)
-    colnames(pi_table) = c("Patient id", "Predicted PI", "Higher risk than % patients")
-    pi_table
+  # output$pi_table_ind = renderDataTable({
+  #   if (!is.null(input$target_upload2)) {
+  #     result = get_theta_ind()
+  #     predTest = result[[2]]
+  #     percent_tbl = percentile(result)
+  #     pi_table = cbind(c(1:nrow(percent_tbl)),percent_tbl)
+  #     colnames(pi_table) = c("Patient id", "Predicted PI", "Higher risk than % patients")
+  #     pi_table
+  #   }else{
+  #     return(h2("Please Upload Data File to View Result"))
+  #   }
+  # })
+  
+  data2 <- reactive({
+    if(!is.null(input$target_upload2)){
+      result = get_theta_ind()
+      percent_tbl = percentile(result)
+      pi_table = cbind(c(1:nrow(percent_tbl)),percent_tbl)
+      colnames(pi_table) = c("Patient id", "Predicted PI", "Higher risk than % patients")
+      return(pi_table)
+    }else{
+     return("Please upload test file.")
+    }
   })
+  
+  output$pi_table2 = renderDataTable({
+    data2()
+  }, options = list(lengthChange = FALSE))
+  
+  output$downloadData2 = downloadHandler(
+    filename = "PE_Individual_Output.csv",
+    content = function(file){
+      write.csv(data2(), file, row.names = F)
+    })
+  output$download_test2 = downloadHandler(
+    filename = "Sample_individual_test.csv",
+    content = function(file){
+      write.csv(head(example_ind()), filec)
+    }
+  )
   
 })
-
 # Run the application 
 shinyApp(ui = ui, server = server)
