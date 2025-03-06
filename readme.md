@@ -1,4 +1,4 @@
-This repository contains code and data needed for PE prognosis predictor shiny app
+This repository contains code and data needed for PE delivery predictor shiny app
 
 shiny1219.R - code for the shiny app
 
