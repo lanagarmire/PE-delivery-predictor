@@ -13,7 +13,7 @@ models = c("Baseline Model", "Full Model", "EOPE Baseline Model", "EOPE Full Mod
 
   
 ui <- shinyUI(
-  navbarPage("Preeclampsia Prognosis Prediction Tool",
+  navbarPage("Preeclampsia Delivery Prediction Tool",
    tabPanel("Individual Prediction",
             sidebarLayout(
               sidebarPanel(
