@@ -1,4 +1,4 @@
-FROM continuumio/anaconda3
+FROM continuumio/anaconda3:2021.11
 
 MAINTAINER "Coxx-nnet-v2" lana.garmire.group@gmail.com
 
