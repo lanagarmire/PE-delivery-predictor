@@ -5,6 +5,7 @@ library(glmnet)
 library(survival)
 library(survminer)
 source("helper.R")
+options(shiny.reactlog = TRUE)
 
 options(shiny.host = '0.0.0.0')
 options(shiny.port = 8091)
@@ -17,8 +18,8 @@ ui <- shinyUI(
    tabPanel("Individual Prediction",
             sidebarLayout(
               sidebarPanel(
-                radioButtons("select_model2", "Please select model:", models),
-                fileInput('target_upload2', 'Upload new data (see instruction)',
+                radioButtons("select_model2", "Please select model:", choices = models, selected = "Full Model"),
+                fileInput('target_upload2', 'Upload new data for one single patient (see instruction)',
                           accept = c(
                             'text/csv',
                             'text/comma-separated-values',
@@ -42,7 +43,8 @@ ui <- shinyUI(
                 fluidRow(downloadButton("downloadData2", "Download Individual Prediction Result"),
                          align = "center"),
                 fluidRow(
-                  dataTableOutput("pi_table2")
+                  dataTableOutput("pi_table2"),
+                  textOutput("pi_table_msg2")
                 )
               )
             )
@@ -51,8 +53,8 @@ ui <- shinyUI(
    tabPanel("Group Prediction",
       sidebarLayout(
         sidebarPanel(
-          radioButtons("select_model1", "Please select model:", models),
-          fileInput('target_upload1', 'Upload new data (see instruction)',
+          radioButtons("select_model1", "Please select model:", choices = models, selected = "Full Model"),
+          fileInput('target_upload1', 'Upload new group data (see instruction)',
                     accept = c(
                       'text/csv',
                       'text/comma-separated-values',
@@ -74,7 +76,8 @@ ui <- shinyUI(
           ),
           fluidRow(downloadButton("downloadData1", "Download Group Prediction Result"),align = "center"),
           fluidRow(
-            dataTableOutput("pi_table")
+            dataTableOutput("pi_table"),
+            textOutput("pi_table_msg")
           )
         )
       )
@@ -169,14 +172,14 @@ server <- shinyServer(function(input, output){
       colnames(pi_table) = c("Patient id", "Predicted PI", "Higher risk than % patients")
       return(pi_table)
     }else{
-      return("")
+      return("please upload data")
     }
     
   })
   
   output$pi_table = renderDataTable({
     data()
-  })
+  }, options = list(lengthChange = FALSE))
   output$downloadData1 = downloadHandler(
     filename = "PE_Group_Output.csv",
     content = function(file){
@@ -187,9 +190,14 @@ server <- shinyServer(function(input, output){
     content = function(file){
       write.csv(head(example()), file)
     }
-    
   )
-  
+  output$pi_table_msg <- renderText({
+    if (is.null(input$target_upload2)) {
+      "Please upload data to see predicted risks."
+    } else {
+      ""
+    }
+  })
   
   ################################# Individual Prediction ###################################
   
@@ -258,6 +266,7 @@ server <- shinyServer(function(input, output){
     percent = percentile(result)[,2]
     df = data.frame(c(predTrain, predTest))
     colnames(df) = "train"
+
     #plot train theta histogram and mark test theta location
     if(get_update()){
       ggplot(df, aes(x = train))+
@@ -279,30 +288,19 @@ server <- shinyServer(function(input, output){
   
   })
   
-  # output$pi_table_ind = renderDataTable({
-  #   if (!is.null(input$target_upload2)) {
-  #     result = get_theta_ind()
-  #     predTest = result[[2]]
-  #     percent_tbl = percentile(result)
-  #     pi_table = cbind(c(1:nrow(percent_tbl)),percent_tbl)
-  #     colnames(pi_table) = c("Patient id", "Predicted PI", "Higher risk than % patients")
-  #     pi_table
-  #   }else{
-  #     return(h2("Please Upload Data File to View Result"))
-  #   }
-  # })
-  
+
   data2 <- reactive({
     if(!is.null(input$target_upload2)){
-      result = get_theta_ind()
+      result <- get_theta_ind()
       percent_tbl = percentile(result)
       pi_table = cbind(c(1:nrow(percent_tbl)),percent_tbl)
       colnames(pi_table) = c("Patient id", "Predicted PI", "Higher risk than % patients")
       return(pi_table)
     }else{
-     return("Please upload test file.")
+      return("please upload data")
     }
   })
+  
   
   output$pi_table2 = renderDataTable({
     data2()
@@ -319,6 +317,13 @@ server <- shinyServer(function(input, output){
       write.csv(head(example_ind()), filec)
     }
   )
+  output$pi_table_msg2 <- renderText({
+    if (is.null(input$target_upload2)) {
+      "Please upload data to see predicted risks."
+    } else {
+      ""
+    }
+  })
   
 })
 # Run the application 
